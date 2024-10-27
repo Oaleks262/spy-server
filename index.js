@@ -26,10 +26,16 @@ wss.on('connection', (ws) => {
         if (room) {
           room.addPlayer(ws, data.playerName);
           room.broadcast(JSON.stringify({ type: 'players-updated', players: room.players.map(player => player.playerName) }));
+          
+          // Перевірка на кількість гравців
+          if (room.players.length === 3) {
+            room.broadcast(JSON.stringify({ type: 'show-start-button' }));
+          }
         } else {
           ws.send(JSON.stringify({ type: 'error', message: 'Кімната не знайдена' }));
         }
         break;
+      
 
       case 'start-game':
         console.log(`Запуск гри в кімнаті ${data.roomCode}`);
@@ -82,40 +88,50 @@ wss.on('connection', (ws) => {
         }
         break;
 
-      // Додаємо обробку 'finish-introduction'
+      // Обробка завершення виступу
+      // case 'finish-introduction':
+      //   const introRoom = roomManager.getRoom(data.roomCode);
+      //   if (introRoom) {
+      //     console.log(`Отримано запит на завершення виступу від гравця ${data.playerName} в кімнаті ${data.roomCode}`);
+      
+      //     const currentPlayerIndex = introRoom.players.findIndex(player => player.playerName === data.playerName);
+          
+      //     if (currentPlayerIndex !== -1) {
+      //       introRoom.players[currentPlayerIndex].hasFinished = true; // Позначаємо гравця як того, що завершив
+      
+      //       // Перевіряємо, чи всі гравці завершили виступ
+      //       if (introRoom.players.every(player => player.hasFinished)) {
+      //         introRoom.broadcast(JSON.stringify({ type: 'introduction-ended' }));
+      //       } else {
+      //         // Переходимо до наступного гравця
+      //         const nextPlayerIndex = (currentPlayerIndex + 1) % introRoom.players.length;
+      //         const nextPlayer = introRoom.players[nextPlayerIndex].playerName;
+      //         introRoom.broadcast(JSON.stringify({ type: 'next-introducer', currentPlayer: nextPlayer }));
+      //       }
+      //     } else {
+      //       console.log(`Гравець ${data.playerName} не знайдений у кімнаті ${data.roomCode}`);
+      //     }
+      //   } else {
+      //     console.log(`Кімната ${data.roomCode} не знайдена.`);
+      //   }
+      //   break;
       case 'finish-introduction':
         const introRoom = roomManager.getRoom(data.roomCode);
         if (introRoom) {
-          introRoom.broadcast(JSON.stringify({ type: 'introduction-ended' }));
-        }
-        break;
-        
-      case 'next-introducer':
-        const nextIntroRoom = roomManager.getRoom(data.roomCode);
-        if (nextIntroRoom) {
-          const players = nextIntroRoom.players;
-          const currentPlayerIndex = players.findIndex(player => player.playerName === data.currentPlayer);
-          const nextPlayerIndex = (currentPlayerIndex + 1) % players.length;
-      
-          // Перевіряємо, чи це був останній гравець
-          if (nextPlayerIndex === 0) {
-            // Якщо так, завершуємо знайомство і переходимо до голосування
-            nextIntroRoom.broadcast(JSON.stringify({
-              type: 'introduction-ended',
-            }));
-            // Тут можна додати логіку для запуску голосування
+          const currentPlayerIndex = introRoom.players.findIndex(player => player.playerName === data.playerName);
+          introRoom.players[currentPlayerIndex].hasFinished = true;
+          if (introRoom.players.every(player => player.hasFinished)) {
+            introRoom.broadcast(JSON.stringify({ type: 'introduction-ended' }));
           } else {
-            // Інакше продовжуємо знайомство з наступним гравцем
-            const nextPlayer = players[nextPlayerIndex].playerName;
-            nextIntroRoom.broadcast(JSON.stringify({
-              type: 'next-introducer',
-              currentPlayer: nextPlayer,
-              nextPlayer: players[(nextPlayerIndex + 1) % players.length].playerName,
-            }));
+            const nextPlayerIndex = (currentPlayerIndex + 1) % introRoom.players.length;
+            const nextPlayer = introRoom.players[nextPlayerIndex].playerName;
+            introRoom.broadcast(JSON.stringify({ type: 'next-introducer', currentPlayer: nextPlayer }));
           }
         }
         break;
+
       
+
       default:
         console.log('Невідомий тип повідомлення:', data.type);
     }
