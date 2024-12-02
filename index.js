@@ -130,6 +130,37 @@ wss.on('connection', (ws) => {
         }
         break;
 
+
+        case 'start-discussion':
+          const discussionRoom = roomManager.getRoom(data.roomCode);
+          if (discussionRoom) {
+            discussionRoom.broadcast(JSON.stringify({ type: 'discussion-started' }));
+        
+            // Запускаємо таймер на 2 хвилини
+            setTimeout(() => {
+              discussionRoom.broadcast(JSON.stringify({ type: 'discussion-ended' }));
+        
+              // Після закінчення обговорення розпочинаємо голосування
+              discussionRoom.broadcast(JSON.stringify({ type: 'start-voting' }));
+            }, 2 * 60 * 1000); // 2 хвилини в мілісекундах
+          }
+          break;
+        
+        case 'cast-vote':
+          const votingRoom = roomManager.getRoom(data.roomCode);
+          if (votingRoom) {
+            // Обробка голосу гравця (наприклад, збереження голосів)
+            votingRoom.registerVote(data.playerName, data.vote);
+        
+            // Перевірка, чи всі гравці вже проголосували
+            if (votingRoom.allVotesIn()) {
+              // Після отримання всіх голосів надсилаємо результати
+              const results = votingRoom.calculateResults();
+              votingRoom.broadcast(JSON.stringify({ type: 'voting-results', results }));
+            }
+          }
+          break;
+        
       
 
       default:
